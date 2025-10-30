@@ -40,7 +40,7 @@ export default function Dapp() {
   // ✅ Write function
   const writeValue = async () => {
     if (!contract) return alert("Connect wallet first!");
-    const tx = await contract.setNumber(10);
+    const tx = await contract.setNumber(100);
     await tx.wait();
     console.log("Transaction confirmed ✅");
     setHash(tx.hash);
@@ -54,6 +54,7 @@ export default function Dapp() {
         setAccount(accounts[0] || null);
         setContract(null);
         setValue(null);
+        setHash(null)
       });
 
       window.ethereum.on("chainChanged", async () => {
