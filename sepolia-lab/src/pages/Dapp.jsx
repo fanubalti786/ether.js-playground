@@ -8,7 +8,7 @@ export default function Dapp() {
   const [value, setValue] = useState(null);
   const [hash, setHash] = useState(null);
 
-  // ✅ Connect Wallet
+  // ✅ Connect Wallet Perfectly
   const connectWallet = async () => {
     if (typeof window !== "undefined" && window.ethereum) {
       try {
