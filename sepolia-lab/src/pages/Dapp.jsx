@@ -4,24 +4,31 @@ import { address, abi } from "../constant";
 
 export default function Dapp() {
   const [account, setAccount] = useState(null);
+  const [chainIdNumber, setChainIdNumber] = useState("");
+  const [networkName, setNetworkName] = useState("");
   const [contract, setContract] = useState(null);
   const [value, setValue] = useState(null);
   const [hash, setHash] = useState(null);
 
-  // ✅ Connect Wallet Perfectly
+  // ✅ Connect Wallet
   const connectWallet = async () => {
     if (typeof window !== "undefined" && window.ethereum) {
       try {
-         const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      const signer = await provider.getSigner();
-      const myContract = new ethers.Contract(address, abi, signer);
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await window.ethereum.request({
+          method: "eth_requestAccounts",
+        });
+        const signer = await provider.getSigner();
+        const myContract = new ethers.Contract(address, abi, signer);
+        const network = await provider.getNetwork();
 
-      setAccount(accounts[0]);
-      setContract(myContract);
+        setAccount(accounts[0]);
+        setContract(myContract);
+        setChainIdNumber(network.chainId.toString());
+        setNetworkName(network.name);
 
-      console.log("Wallet Connected:", accounts[0]);
-        
+        console.log("Wallet Connected:", accounts[0]);
+        console.log("Network:", network.name, "ChainID:", network.chainId);
       } catch (error) {
         if (error.code === 4001) alert("Connection rejected");
         else console.error(error);
@@ -47,21 +54,73 @@ export default function Dapp() {
     readValue();
   };
 
-  // ✅ Events
+  // ✅ Auto update when account or network changes
   useEffect(() => {
     if (window.ethereum) {
-      window.ethereum.on("accountsChanged", (accounts) => {
-        setAccount(accounts[0] || null);
-        setContract(null);
-        setValue(null);
-        setHash(null)
-      });
+      // 🔹 Function to handle when user changes MetaMask account
+      const handleAccountsChanged = async (accounts) => {
+        if (accounts.length === 0) {
+          setAccount(null);
+        } else {
+          // 🟩 FIX: added provider fallback for refresh
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          const network = await provider.getNetwork();
 
-      window.ethereum.on("chainChanged", async () => {
-        console.log("Chain changed, contract reinitialized ✅");
-      });
+          setAccount(accounts[0] || null);
+          setChainIdNumber(network.chainId.toString());
+          setNetworkName(network.name);
+        }
+      };
+
+      // 🔹 Function to handle when user switches MetaMask network
+      const handleChainChanged = async (chainId) => {
+        // 🟩 FIX: added provider fallback for refresh
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const network = await provider.getNetwork();
+
+        setNetworkName(network.name);
+        setChainIdNumber(parseInt(chainId, 16));
+      };
+
+      // 🟩 FIX: Auto reconnect wallet on page refresh
+      (async () => {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (accounts.length > 0) {
+          const signer = await provider.getSigner();
+          const myContract = new ethers.Contract(address, abi, signer);
+          const network = await provider.getNetwork();
+
+          setContract(myContract);
+          setAccount(accounts[0]);
+          setChainIdNumber(network.chainId.toString());
+          setNetworkName(network.name);
+
+          console.log("🔁 Auto-reconnected to wallet:", accounts[0]);
+        }
+      })();
+
+      // 🔹 Real-time event listeners
+      window.ethereum.on("accountsChanged", handleAccountsChanged);
+      window.ethereum.on("chainChanged", handleChainChanged);
+
+      // 🔹 Clean-up on component unmount
+      return () => {
+        if (window.ethereum?.removeListener) {
+          window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+          window.ethereum.removeListener("chainChanged", handleChainChanged);
+        }
+      };
     }
-  }, []);
+  }, []); // ✅ Runs only once when component mounts
+
+  // 🟩 (Optional) Wrong network warning
+  useEffect(() => {
+    if (chainIdNumber && chainIdNumber !== "11155111") {
+      console.warn("⚠️ You are not on Sepolia network");
+    }
+  }, [chainIdNumber]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-slate-900 via-purple-900 to-slate-800 p-6">
@@ -72,11 +131,23 @@ export default function Dapp() {
 
         {account ? (
           <div className="space-y-4">
+            {/* ✅ Connected Wallet */}
             <p className="bg-slate-800/70 p-3 rounded-xl shadow border border-purple-400/30 text-sm break-all">
-              <span className="text-purple-300 block mb-1">🔗 Connected Wallet:</span>
+              <span className="text-purple-300 block mb-1">
+                🔗 Connected Wallet:
+              </span>
               {account}
             </p>
 
+            {/* ✅ Network Info */}
+            <p className="bg-slate-800/70 p-3 rounded-xl shadow border border-blue-400/30 text-sm">
+              <span className="text-blue-300 block mb-1">🌐 Connected Network:</span>
+              <span className="text-yellow-300 font-semibold">
+                {networkName ? `${networkName} (${chainIdNumber})` : "Loading..."}
+              </span>
+            </p>
+
+            {/* ✅ Last Transaction Hash */}
             {hash && (
               <p className="bg-green-900/50 p-3 rounded-xl shadow border border-green-400/30 text-sm break-all">
                 <span className="text-green-300 block mb-1">✅ Last Tx Hash:</span>
@@ -111,15 +182,18 @@ export default function Dapp() {
 
         {value !== null && (
           <p className="mt-6 bg-slate-800/70 p-3 rounded-xl shadow border border-purple-400/30">
-            <span className="text-purple-300 text-sm block">📊 Current Value in Smart Contract:</span>
+            <span className="text-purple-300 text-sm block">
+              📊 Current Value in Smart Contract:
+            </span>
             <span className="text-yellow-300 font-bold text-lg">{value}</span>
           </p>
         )}
 
         {/* Info Section */}
         <div className="mt-8 bg-slate-900/80 p-4 rounded-xl border border-white/20 text-xs text-gray-300">
-          ⚡ <span className="font-semibold text-purple-300">Note:</span>  
-          This dApp doesn’t use a normal database. All actions (Read / Write) directly interact with an Ethereum Smart Contract on-chain.  
+          ⚡ <span className="font-semibold text-purple-300">Note:</span>
+          This dApp doesn’t use a normal database. All actions (Read / Write)
+          directly interact with an Ethereum Smart Contract on-chain.
         </div>
       </div>
     </div>
