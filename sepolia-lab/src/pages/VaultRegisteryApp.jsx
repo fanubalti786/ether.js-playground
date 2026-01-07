@@ -48,7 +48,7 @@ export default function VaultRegistryApp() {
 
   // Simple error UI
   const showError = (error) => {
-    const msg = error?.reason || error?.message || "Transaction failed!";
+    const msg =  "Transaction failed!";
     alert(msg);
   };
 
@@ -196,7 +196,7 @@ export default function VaultRegistryApp() {
     const init = async () => {
       if (!window.ethereum) return;
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await window.ethereum.request({ method: "eth_accounts" });
+      const accounts = await provider.send("eth_accounts", []);
       if (accounts.length > 0) {
         const acc = accounts[0];
         setAccount(acc);
@@ -815,7 +815,7 @@ export default function VaultRegistryApp() {
                     <div key={idx} className="p-2 rounded-lg bg-black/20">
                       {e.type === "Registered" && (
                         <div className="text-sm">
-                          🧾 Registered as <b className="text-indigo-200">{e.name}</b> (Age {e.age}) •{" "}
+                          🧾 Registered as <b className="text-indigo-200">{e.name}</b> (Age {e.age}) •{""}
                           <a
                             href={`https://sepolia.etherscan.io/tx/${e.txHash}`}
                             target="_blank"
